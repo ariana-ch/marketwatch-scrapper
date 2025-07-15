@@ -6,7 +6,7 @@ A Python package for scraping MarketWatch articles from the Wayback Machine.
 Author: Ariana Christodoulou <ariana.chr@gmail.com>
 """
 
-from .marketwatch import (
+from .marketwatch_scrapper import (
     MarketWatchAdapter,
     safe_get,
     create_session,

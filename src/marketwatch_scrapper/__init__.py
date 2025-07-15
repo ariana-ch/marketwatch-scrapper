@@ -6,8 +6,8 @@ A Python package for scraping MarketWatch articles from the Wayback Machine.
 Author: Ariana Christodoulou <ariana.chr@gmail.com>
 """
 
-from .marketwatch import (
-    MarketWatchAdapter,
+from .marketwatch_scrapper import (
+    MarketWatchScrapper,
     safe_get,
     create_session,
     cdx_query,
@@ -19,12 +19,12 @@ from .marketwatch import (
     logger
 )
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __author__ = "Ariana Christodoulou"
 __email__ = "ariana.chr@gmail.com"
 
 __all__ = [
-    "MarketWatchAdapter",
+    "MarketWatchScrapper",
     "safe_get",
     "create_session", 
     "cdx_query",

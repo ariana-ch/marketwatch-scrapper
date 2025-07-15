@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 if __name__ == "__main__":
     setup(
-        name="marketwatch",
+        name="marketwatch-scrapper",
         version="0.1.0",
         description="A Python package for scraping MarketWatch articles from the Wayback Machine",
         author="Ariana Christodoulou",

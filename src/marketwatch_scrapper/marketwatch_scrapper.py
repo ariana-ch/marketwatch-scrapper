@@ -5,39 +5,41 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from logging import getLogger, StreamHandler, INFO
-from typing import List, Optional, Dict, Union
-from newspaper import Article
+from typing import List, Optional, Dict
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from newspaper import Article
 from requests.adapters import HTTPAdapter, Retry
 
+TOPICS = [
+    '/investing/technology',
+    '/investing/autos',
+    '/investing/banking',
+    '/markets/us',
+    '/investing/industries',
+    '/investing/stocks',
+    '/investing/internet-online-services',
+    '/investing/retail',
+    '/latest-news',
+    '/markets/financial-markets',
+    '/investing/software',
+    '/markets'
+]
 
-TOPICS = ['/investing/technology',
-          '/investing/autos',
-          '/investing/banking',
-          '/markets/us',
-          '/investing/industries',
-          '/investing/stocks',
-          '/investing/internet-online-services',
-          '/investing/retail',
-          '/latest-news',
-          '/markets/financial-markets',
-          '/investing/software',
-          '/markets']
-
-
-EXCLUDE_PATTERNS = ['signin', 'login', 'subscri', 'member', 'footer', 'about', 'contact', 'privacy', 'terms', 'help',
-                    'video', 'podcast', 'audio', '-worship', 'architecture', 'lifestyle', 'fashion', 'on-the-clock',
-                    'recipes', 'travel', 'real-estate', 'science', 'health', 'sports', 'arts-culture', 'art-review',
-                    'obituar', 'wine', 'film-review', 'book-review', 'television-review', 'arts', 'art', '-review',
-                    'bookshelf', 'play.google', 'apple.com/us/app', 'policy/legal-policies', 'djreprints', 'register',
-                    'wsj.jobs', 'smartmoney', 'classifieds', 'cultural', 'masterpiece', 'puzzle', 'personal-finance',
-                    'style', 'customercenter', 'snapchat', 'cookie-notice', 'facebook', 'instagram', 'twitter',
-                    '/policy/copyright-policy', '/policy/data-policy', 'market-data/quotes/', 'buyside',
-                    'accessibility-statement', 'press-room', 'mansionglobal', 'images', 'mailto', 'youtube', '#',
-                    'get.investors']
+EXCLUDE_PATTERNS = [
+    'signin', 'login', 'subscri', 'member', 'footer', 'about', 'contact', 'privacy', 'terms', 'help',
+    'video', 'podcast', 'audio', '-worship', 'architecture', 'lifestyle', 'fashion', 'on-the-clock',
+    'recipes', 'travel', 'real-estate', 'science', 'health', 'sports', 'arts-culture', 'art-review',
+    'obituar', 'wine', 'film-review', 'book-review', 'television-review', 'arts', 'art', '-review',
+    'bookshelf', 'play.google', 'apple.com/us/app', 'policy/legal-policies', 'djreprints', 'register',
+    'wsj.jobs', 'smartmoney', 'classifieds', 'cultural', 'masterpiece', 'puzzle', 'personal-finance',
+    'style', 'customercenter', 'snapchat', 'cookie-notice', 'facebook', 'instagram', 'twitter',
+    '/policy/copyright-policy', '/policy/data-policy', 'market-data/quotes/', 'buyside',
+    'accessibility-statement', 'press-room', 'mansionglobal', 'images', 'mailto', 'youtube', '#',
+    'get.investors'
+]
 
 
 def _get_logger(name: str = __name__):
@@ -91,8 +93,12 @@ def create_session() -> requests.Session:
     return session
 
 
-def cdx_query(url: str, session: requests.Session, start_date: datetime.date, end_date: datetime.date) -> List[
-    List[str]]:
+def cdx_query(
+    url: str,
+    session: requests.Session,
+    start_date: datetime.date,
+    end_date: datetime.date
+) -> List[List[str]]:
     """
     Query the Wayback Machine's CDX API for a specific URL and date range.
 
@@ -138,13 +144,12 @@ def cdx_query(url: str, session: requests.Session, start_date: datetime.date, en
 
 def is_article(url: str) -> bool:
     url = url.rsplit('https://', 1)[-1]
-    if not '-' in url:
+    if '-' not in url:
         return False
     tail = url.rsplit('-', 1)[-1]
 
     # Check if the URL ends with a valid article ID (at least 3 digits)
     return len(re.compile(r'\d').findall(tail)) > 3
-
 
 
 def extract_article_links(soup: BeautifulSoup) -> List[str]:
@@ -161,8 +166,12 @@ def extract_article_links(soup: BeautifulSoup) -> List[str]:
         href = link['href']
 
         # Skip if href is empty or just a fragment
-        if (not href or href.startswith('#') or any([pattern in href.lower() for pattern in EXCLUDE_PATTERNS]) or
-                not href.startswith('http')):
+        if (
+            not href
+            or href.startswith('#')
+            or any([pattern in href.lower() for pattern in EXCLUDE_PATTERNS])
+            or not href.startswith('http')
+        ):
             continue
 
         href = href.rsplit('?mod', 1)[0]  # Remove query parameters if any
@@ -174,7 +183,10 @@ def extract_article_links(soup: BeautifulSoup) -> List[str]:
     return list(set(article_links))
 
 
-def process_article_url(urls: List[str], session: requests.Session) -> Optional[Dict]:
+def process_article_url(
+    urls: List[str],
+    session: requests.Session
+) -> Optional[Dict]:
     """
     Process a single article to extract its content.
     Returns article data if successful, None otherwise.
@@ -203,18 +215,32 @@ def process_article_url(urls: List[str], session: requests.Session) -> Optional[
             article.parse()
             article.nlp()
 
-            keywords = article.meta_keywords or article.keywords or article.meta_data['news_keywords'] or article.meta_data['keywords']
+            keywords = (
+                article.meta_keywords
+                or article.keywords
+                or article.meta_data['news_keywords']
+                or article.meta_data['keywords']
+            )
             keywords = ','.split(keywords) if isinstance(keywords, str) else keywords
-            keywords = ','.join([x for x in keywords if not any([excluded in x.lower() for excluded in ['factiva', 'filter']])])
+            keywords = ','.join([
+                x for x in keywords
+                if not any([excluded in x.lower() for excluded in ['factiva', 'filter']])
+            ])
 
             companies = ','.join([x for x in keywords.split(',') if 'US:' in x])
 
             title = (article.title or article.meta_data['parsely-title'] or '').strip()
 
-            content = article.meta_description + '\n' + article.text if article.meta_description else article.text
+            content = (
+                article.meta_description + '\n' + article.text
+                if article.meta_description else article.text
+            )
             summary = article.summary or article.meta_data.get('parsely-summary', '')
 
-            date = article.publish_date or re.compile(r'\d{8}$').findall(article.meta_data['article.id'] or '')[0]
+            date = (
+                article.publish_date
+                or re.compile(r'\d{8}$').findall(article.meta_data['article.id'] or '')[0]
+            )
             if isinstance(date, str) and len(date) == 8:
                 try:
                     date = datetime.datetime.strptime(date, '%Y%m%d').date()
@@ -235,9 +261,15 @@ def process_article_url(urls: List[str], session: requests.Session) -> Optional[
     return
 
 
-class MarketWatchAdapter:
-    def __init__(self, start_date: datetime.date, end_date: datetime.date, topics: list = TOPICS,
-                 max_workers: int = 3, no_of_captures: int = -1):
+class MarketWatchScrapper:
+    def __init__(
+        self,
+        start_date: datetime.date,
+        end_date: datetime.date,
+        topics: list = TOPICS,
+        max_workers: int = 3,
+        no_of_captures: int = -1
+    ):
         self.url = 'www.marketwatch.com'
         self.start_date = start_date
         self.end_date = end_date
@@ -256,26 +288,53 @@ class MarketWatchAdapter:
             """
             if len(df) == 0:
                 return pd.DataFrame(columns=df.columns)
-            return df.sample(n=min(self.no_of_captures, len(df)), replace=False, random_state=42)
+            return df.sample(
+                n=min(self.no_of_captures, len(df)),
+                replace=False,
+                random_state=42
+            )
 
-        logger.info(f'Retrieving records from:\n{"\n".join([f"{self.url}{topic}" for topic in self.topics])}')
-        records = cdx_query(url=self.url, session=self.session, start_date=self.start_date, end_date=self.end_date)
+        logger.info(
+            f'Retrieving records from:\n'
+            f'{"\n".join([f"{self.url}{topic}" for topic in self.topics])}'
+        )
+        records = cdx_query(
+            url=self.url,
+            session=self.session,
+            start_date=self.start_date,
+            end_date=self.end_date
+        )
         if not records:
-            logger.warning(f"No records found for URL '{self.url}' between {self.start_date} and {self.end_date}")
+            logger.warning(
+                f"No records found for URL '{self.url}' between {self.start_date} and {self.end_date}"
+            )
             return []
-        logger.info(f"Found {len(records)} records for {self.url} between {self.start_date} and {self.end_date}")
+        logger.info(
+            f"Found {len(records)} records for {self.url} between {self.start_date} and {self.end_date}"
+        )
 
         if self.no_of_captures > -1:
             df = pd.DataFrame(records, columns=['timestamp', 'original'])
             df['datetime'] = pd.to_datetime(df['timestamp'], format='%Y%m%d%H%M%S')
             df['date'] = df['datetime'].dt.date
             df = df.sort_values(by='datetime')
-            df['clean_url'] = df.original.apply(lambda x: '/'.join(
-                [i.strip() for i in x.replace('http://', '').replace('https://', '').split('/') if i.strip()]))
-            df = (df.groupby(['date', 'clean_url'], as_index=False).apply(random_choice, include_groups=False).
-                  reset_index(drop=True))
+            df['clean_url'] = df.original.apply(
+                lambda x: '/'.join([
+                    i.strip()
+                    for i in x.replace('http://', '').replace('https://', '').split('/')
+                    if i.strip()
+                ])
+            )
+            df = (
+                df.groupby(['date', 'clean_url'], as_index=False)
+                .apply(random_choice, include_groups=False)
+                .reset_index(drop=True)
+            )
             records = df[['timestamp', 'original']].values.tolist()
-        records = [[x[0], x[1] + '/' + topic] for x in records for topic in self.topics]
+        records = [
+            [x[0], x[1] + '/' + topic]
+            for x in records for topic in self.topics
+        ]
         return records
 
     def get_all_article_links(self, records: List[List[str]]) -> List[str]:
@@ -296,12 +355,17 @@ class MarketWatchAdapter:
             links = list(set(extract_article_links(soup)))
             return links
 
-        logger.info(f"Fetching all article links between {self.start_date} and {self.end_date}")
+        logger.info(
+            f"Fetching all article links between {self.start_date} and {self.end_date}"
+        )
 
         all_links = []
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = [executor.submit(_do_get_article_links, record) for record in records]
+            futures = [
+                executor.submit(_do_get_article_links, record)
+                for record in records
+            ]
 
             for future in futures:
                 result = future.result()
@@ -309,16 +373,25 @@ class MarketWatchAdapter:
                     all_links.extend(result)
 
         df = pd.DataFrame(all_links, columns=['url'])
-        df['date'] = pd.to_datetime(df['url'].str.extract(r'(\d{8})')[0], format='%Y%m%d')
-        df['article_url'] = df.url.apply(lambda x: x.rsplit('https://', 1)[-1])
-        df = df.groupby(['article_url']).url.apply(lambda x: x.tolist()).reset_index()
+        df['date'] = pd.to_datetime(
+            df['url'].str.extract(r'(\d{8})')[0], format='%Y%m%d'
+        )
+        df['article_url'] = df.url.apply(
+            lambda x: x.rsplit('https://', 1)[-1]
+        )
+        df = df.groupby(['article_url']).url.apply(
+            lambda x: x.tolist()
+        ).reset_index()
         all_links = df['url'].tolist()
-        logger.info(f"Found {len(all_links)} distinct article links from between {self.start_date} and {self.end_date}")
+        logger.info(
+            f"Found {len(all_links)} distinct article links from between {self.start_date} and {self.end_date}"
+        )
         return all_links
 
-
     def download(self) -> List[Dict]:
-        logger.info(f"Starting download for {self.url} from {self.start_date} to {self.end_date}")
+        logger.info(
+            f"Starting download for {self.url} from {self.start_date} to {self.end_date}"
+        )
         records = self.get_all_records()
 
         self.records = records
@@ -328,7 +401,7 @@ class MarketWatchAdapter:
         self.article_links = article_links
 
         if not article_links:
-            logger.error(f"Could not retrieve any article links")
+            logger.error("Could not retrieve any article links")
             return []
 
         all_articles = []
@@ -336,7 +409,10 @@ class MarketWatchAdapter:
             process_article_url(link_list, self.session)
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = [executor.submit(process_article_url, link_list, self.session) for link_list in article_links]
+            futures = [
+                executor.submit(process_article_url, link_list, self.session)
+                for link_list in article_links
+            ]
 
             for future in futures:
                 result = future.result()
@@ -344,14 +420,16 @@ class MarketWatchAdapter:
                     # result is now a list, so extend instead of append
                     all_articles.extend(result)
         logger.info(f"Successfully extracted {len(all_articles)} articles")
-        logger.info(f"Finished processing. Total articles extracted: {len(all_articles)}")
+        logger.info(
+            f"Finished processing. Total articles extracted: {len(all_articles)}"
+        )
         return all_articles
 
 
 if __name__ == "__main__":
     # main()
     # Test with a smaller date range and fewer workers
-    mw = MarketWatchAdapter(
+    mw = MarketWatchScrapper(
         no_of_captures=15,
         start_date=datetime.date(2025, 1, 10),
         end_date=datetime.date(2025, 1, 10),  # Just one day
@@ -378,5 +456,3 @@ if __name__ == "__main__":
         with open('extracted_articles_new.json', 'w', encoding='utf-8') as f:
             json.dump(downloaded_articles, f, indent=2, ensure_ascii=False)
         print(f"\nArticles saved to extracted_articles.json")
-
-
