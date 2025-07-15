@@ -9,9 +9,9 @@ A Python package for scraping MarketWatch articles from the Wayback Machine. Thi
 
 - Scrape MarketWatch articles from the Wayback Machine
 - Extract article content, headlines, summaries, and metadata
-- Filter articles by date range and topics
+- Filter articles by date range and topics (base URLs)
 - Multi-threaded processing for efficient scraping
-- Configurable capture limits and worker threads
+- Configurable capture limits (number of captures to keep per query date) and worker threads
 - Built-in rate limiting and retry mechanisms
 
 ## Installation
@@ -26,6 +26,13 @@ pip install marketwatch
 git clone https://github.com/ariana-ch/marketwatch-scrapper.git
 cd marketwatch-scrapper
 pip install -e .
+```
+
+### Install via Git (recommended)
+You can install the latest version directly from GitHub using pip:
+
+```bash
+pip install git+https://github.com/ariana-ch/marketwatch-scrapper.git
 ```
 
 ## Dependencies
@@ -43,10 +50,10 @@ pip install -e .
 
 ```python
 import datetime
-from marketwatch import MarketWatchAdapter
+from marketwatch_scrapper import MarketWatchScrapper
 
-# Create an adapter instance
-adapter = MarketWatchAdapter(
+# Create a scrapper instance
+scrapper = MarketWatchScrapper(
     start_date=datetime.date(2024, 1, 1),
     end_date=datetime.date(2024, 1, 31),
     max_workers=3,
@@ -54,7 +61,7 @@ adapter = MarketWatchAdapter(
 )
 
 # Download articles
-articles = adapter.download()
+articles = scrapper.download()
 
 # Print results
 print(f"Downloaded {len(articles)} articles")
@@ -69,7 +76,7 @@ for article in articles[:3]:  # Show first 3 articles
 
 ```python
 import datetime
-from marketwatch import MarketWatchAdapter
+from marketwatch_scrapper import MarketWatchScrapper
 
 # Custom topics
 custom_topics = [
@@ -78,8 +85,8 @@ custom_topics = [
     '/markets/us'
 ]
 
-# Create adapter with custom settings
-adapter = MarketWatchAdapter(
+# Create scrapper with custom settings
+scrapper = MarketWatchScrapper(
     start_date=datetime.date(2024, 1, 1),
     end_date=datetime.date(2024, 1, 31),
     topics=custom_topics,
@@ -88,20 +95,20 @@ adapter = MarketWatchAdapter(
 )
 
 # Get CDX records first
-records = adapter.get_all_records()
+records = scrapper.get_all_records()
 print(f"Found {len(records)} CDX records")
 
 # Get article links
-article_links = adapter.get_all_article_links(records)
+article_links = scrapper.get_all_article_links(records)
 print(f"Found {len(article_links)} article links")
 
 # Download articles
-articles = adapter.download()
+articles = scrapper.download()
 ```
 
 ### Available Topics
 
-The package includes predefined topics for MarketWatch sections:
+The package includes predefined topics/base urls for MarketWatch sections:
 
 - `/investing/technology`
 - `/investing/autos`
@@ -118,7 +125,7 @@ The package includes predefined topics for MarketWatch sections:
 
 ## Configuration Options
 
-### MarketWatchAdapter Parameters
+### MarketWatchScrapper Parameters
 
 - `start_date`: Start date for scraping (datetime.date)
 - `end_date`: End date for scraping (datetime.date)
