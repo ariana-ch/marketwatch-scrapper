@@ -223,7 +223,7 @@ def process_article_url(
                 or article.meta_data['keywords']
             )
             keywords = keywords.split(',') if isinstance(keywords, str) else keywords
-            excluded_keywords = re.compile([
+            excluded_keywords = re.compile('|'.join([
                 r'^\d+$',            # pure numbers
                 r'^LINK\|',          # starts with LINK|
                 r'WSJ',              # contains WSJ or WSJ-
@@ -232,7 +232,7 @@ def process_article_url(
                 r'filter',
                 r'gfx-',
                 r'factset',
-            ])
+            ]))
             keywords = [keyword.replace('wsj', '') for keyword in keywords if not excluded_keywords.search(keyword)]
 
             keywords = ','.join([
