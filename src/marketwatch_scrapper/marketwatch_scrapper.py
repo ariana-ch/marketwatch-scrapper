@@ -405,8 +405,6 @@ class MarketWatchScrapper:
             return []
 
         all_articles = []
-        for link_list in article_links:
-            process_article_url(link_list, self.session)
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = [
@@ -418,7 +416,7 @@ class MarketWatchScrapper:
                 result = future.result()
                 if result:
                     # result is now a list, so extend instead of append
-                    all_articles.extend(result)
+                    all_articles.append(result)
         logger.info(f"Successfully extracted {len(all_articles)} articles")
         logger.info(
             f"Finished processing. Total articles extracted: {len(all_articles)}"
