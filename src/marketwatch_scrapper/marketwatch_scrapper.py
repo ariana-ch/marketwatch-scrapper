@@ -215,6 +215,7 @@ def process_article_url(
             article.parse()
             article.nlp()
 
+
             keywords = (
                 article.meta_keywords
                 or article.keywords
@@ -222,6 +223,18 @@ def process_article_url(
                 or article.meta_data['keywords']
             )
             keywords = ','.split(keywords) if isinstance(keywords, str) else keywords
+            excluded_keywords = re.compile([
+                r'^\d+$',            # pure numbers
+                r'^LINK\|',          # starts with LINK|
+                r'WSJ',              # contains WSJ or WSJ-
+                r'^SYND$',           # exactly SYND
+                r'factiva',
+                r'filter',
+                r'gfx-',
+                r'factset',
+            ])
+            keywords = [keyword.replace('wsj', '') for keyword in keywords if not excluded_keywords.search(keyword)]
+
             keywords = ','.join([
                 x for x in keywords
                 if not any([excluded in x.lower() for excluded in ['factiva', 'filter']])
@@ -415,7 +428,6 @@ class MarketWatchScrapper:
             for future in futures:
                 result = future.result()
                 if result:
-                    # result is now a list, so extend instead of append
                     all_articles.append(result)
         logger.info(f"Successfully extracted {len(all_articles)} articles")
         logger.info(
