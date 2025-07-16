@@ -252,8 +252,9 @@ def process_article_url(
 
             date = (
                 article.publish_date
-                or re.compile(r'\d{8}$').findall(article.meta_data['article.id'] or '')[0]
+                or re.compile(r'\d{8}$').findall(article.meta_data['article.id'] or '')
             )
+            if date: date = date[0]
             if isinstance(date, str) and len(date) == 8:
                 try:
                     date = datetime.datetime.strptime(date, '%Y%m%d').date()
@@ -437,7 +438,6 @@ class MarketWatchScrapper:
 
 
 if __name__ == "__main__":
-    # main()
     # Test with a smaller date range and fewer workers
     mw = MarketWatchScrapper(
         no_of_captures=15,
