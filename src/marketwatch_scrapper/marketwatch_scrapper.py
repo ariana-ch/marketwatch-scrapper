@@ -222,7 +222,7 @@ def process_article_url(
                 or article.meta_data['news_keywords']
                 or article.meta_data['keywords']
             )
-            keywords = ','.split(keywords) if isinstance(keywords, str) else keywords
+            keywords = keywords.split(',') if isinstance(keywords, str) else keywords
             excluded_keywords = re.compile([
                 r'^\d+$',            # pure numbers
                 r'^LINK\|',          # starts with LINK|
