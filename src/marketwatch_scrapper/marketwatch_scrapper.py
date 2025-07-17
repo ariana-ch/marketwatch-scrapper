@@ -82,7 +82,7 @@ def create_session() -> requests.Session:
     session = requests.Session()
     # Increased total retries and backoff factor for more resilience
     retries = Retry(
-        total=8,  # Reduced retries
+        total=2,  # Reduced retries
         backoff_factor=2,  # 1s, 2s, 4s, 8s, 16s
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET"]
