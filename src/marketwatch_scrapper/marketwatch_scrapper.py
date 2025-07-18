@@ -204,8 +204,8 @@ def process_article_url(
                 'keywords': '',
                 'companies': '',
                 'date': '',
-                'url': url,
-                'timestamp': re.findall(r'\d{14}', url),
+                'url': url.rsplit('https//', 1)[-1],
+                'timestamp': re.findall(r'\d{14}', url)[0],
                 'archive_url': url
             }
 
@@ -292,7 +292,7 @@ class MarketWatchScrapper:
         self.no_of_captures = no_of_captures
         self.session = create_session()
         self.records = None
-        self.article_links = None
+        self.article_links = []
 
     def get_all_records(self) -> List[List[str]]:
         def random_choice(df):
@@ -346,7 +346,7 @@ class MarketWatchScrapper:
             )
             records = df[['timestamp', 'original']].values.tolist()
         records = [
-            [x[0], x[1] + '/' + topic]
+            [x[0], (x[1].rsplit('/', 1)[0] if x[1].endswith('/') else x[1]) + topic]
             for x in records for topic in self.topics
         ]
         return records
@@ -387,12 +387,19 @@ class MarketWatchScrapper:
                     all_links.extend(result)
 
         df = pd.DataFrame(all_links, columns=['url'])
-        df['date'] = pd.to_datetime(
-            df['url'].str.extract(r'(\d{8})')[0], format='%Y%m%d'
+        df['timestamp'] = pd.to_datetime(
+            df['url'].str.extract(r'(\d{14})')[0], format='%Y%m%d%H%M%S'
         )
         df['article_url'] = df.url.apply(
-            lambda x: x.rsplit('https://', 1)[-1]
+            lambda x: x.rsplit('/', 1)[-1]
         )
+        pre = len(df.article_url.unique())
+        df = df[~df['article_url'].isin(self.article_links)]
+        self.article_links.extend(df['article_url'].unique().tolist())
+        logger.info(f'Filtered {pre - len(df.article_url.unique())} existing article links')
+        if df.empty:
+            logger.warning("No new article links found")
+            return []
         df = df.groupby(['article_url']).url.apply(
             lambda x: x.tolist()
         ).reset_index()
@@ -412,7 +419,6 @@ class MarketWatchScrapper:
 
         logger.info(f"Retrieved {len(records)} CDX records")
         article_links = self.get_all_article_links(records)
-        self.article_links = article_links
 
         if not article_links:
             logger.error("Could not retrieve any article links")
@@ -440,10 +446,10 @@ class MarketWatchScrapper:
 if __name__ == "__main__":
     # Test with a smaller date range and fewer workers
     mw = MarketWatchScrapper(
-        no_of_captures=15,
+        no_of_captures=5,
         start_date=datetime.date(2025, 1, 10),
         end_date=datetime.date(2025, 1, 10),  # Just one day
-        max_workers=3  # Reduced workers
+        max_workers=1  # Reduced workers
     )
     downloaded_articles = mw.download()
 
